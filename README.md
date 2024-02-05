@@ -1,46 +1,49 @@
 # Lidar-with-pdal
 
-In this tutorial, we explore PDAL package to process lidar point clouds. The goal is to create an NDVI image for a region using 1) a lidar las file, 2) an RGB imagery tif file.  
-The two input files have been provided for an optional exercise of "Advanced Remote Sensing Using Lidar" course at University of Maryland. 
+In this tutorial, we explore PDAL package to process lidar point clouds. The goal is to create a pseudo NDVI image for a region using 1) a lidar las file, 2) an RGB imagery tiff file. The two input files have been provided for an optional exercise of "Advanced Remote Sensing Using Lidar" course at University of Maryland. 
 
-The lidar intensity values represents a "pseudo" NIR reflectance value. It is not a true NIR reflectance since it is affected by factors like,the reflectance of the object, scan angle, the point return number, and pulse wavelength. However, we can still use it as a relative measure of NIR reflectance and use it to create a "pseudo" NDVI image using imagery data. NDVI = NIR-RED /(NIR+ RED). Here, we need to develop two raster files representing NIR and RED. 
+The lidar intensity values represents a "pseudo" Near-Infrared reflectance (NIR) value. It is not a true NIR reflectance since it is affected by factors like, reflectance of the object, scan angle, return number, and pulse wavelength. However, as a relative measure of NIR reflectance, we can still utilize lidar NIR in conjunction with imagery data to generate a "pseudo" NDVI image. The NDVI is defined as:  
+NDVI = (NIR-RED) /(NIR+ RED).   
 
-### PDAL package
-PDAL is an open source package for processing point cloud data. More info: https://pdal.io/en/. See the link below for a series of PDAL examples:
-https://pdal.io/en/2.6.0/workshop/index.html
+To solve this, we develop two raster files representing NIR and RED for the study area, and finally we can performa raster calculation to compute NDVI. 
 
-### Get Spatial Reference of lidar ataset:
-We can get the crs of a las file using laspy package as shown below: 
+### Spatial reference of lidar dataset:
+We can get the crs of a las file using [laspy](https://laspy.readthedocs.io) package, which is a powerful python package for data processing of lidar dataset. 
 ```python
 import laspy
 
-las_path = ("Data/MD_Baltimore_2008_000030.las",)
-las = laspy.read(las_path)
+las_file = "Data/MD_Baltimore_2008_000030.las"
+las = laspy.read(las_file)
 crs = las.header.parse_crs()
 print(crs)
 
 ```
-EPSG:26985
+EPSG : 26985
+
+### PDAL package
+[PDAL](https://pdal.io/en/) is an open source package for processing point cloud data. [Here](https://pdal.io/en/2.6.0/workshop/index.html) presents a series of PDAL examples. Here, we use PDAL for most of our lidar data analysis. 
 
 ### Spatial resolution of rasters
-It is recommneded to set raster resolution to be roughly 4 times of the average point spacing. To get point spacing of our las file, we can use below pdal command through a python code:
+To create a raster file from lidar point clouds, it is recommneded to set raster resolution to be roughly 4 times of the average point spacing of lidar dataset. To get average point spacing of our las file, we can use below PDAL command through a python code:
 ```python
 import json
 import subprocess
 
-las_file = "Results/lasclassify_output.las"
+las_file = "Data/MD_Baltimore_2008_000030.las"
 pdal_command = ["pdal", "info", "%s" % las_file, "--boundary"]
 result = subprocess.run(pdal_command, capture_output=True, text=True)
 results_dict = json.loads(result.stdout)
-print(
-    f"{las_file} file: avg_pt_spacing:{round(results_dict['boundary']['avg_pt_spacing'],3)}m"
+print(f"avg_pt_spacing:{round(results_dict['boundary']['avg_pt_spacing'],3)} m")
 ```
-And the results is “avg_pt_spacing": 2.869m”. So we use cell size of 10ft, which is almost 4 times of average point spacing.
+And the results is avg_pt_spacing: 2.869 m. So, we use cell size of 10m, which is almost 4 times of average point spacing.
 
 
 
 ### Step 1: Develop NIR (Intensity) raster
-To get a good intensity image, it's best to filter the lidar points to select only first returns and no overlap. We used below PDAL pipeline within a python code to achieve this. 
+To create a more reliable intensity image, it's best to filter the lidar points to select only first returns and no overlap. We used below PDAL pipeline within a python code to:
+-  Read the las file
+-  Select only points with return number one, and only classifications of 1 and 2 (This las file has only classification 1, 2 and 12, which represents overlaps)
+-  Make a raster file with cell size of 10 using mean values of intensity in each cell
 ```python
 import json
 
@@ -75,7 +78,7 @@ pipeline.execute()
 
 ```
 
-Finally, we use below code to plot the intensity raster:
+We can use below code to plot the intensity raster created above by PDAL:
 ```python
 import matplotlib.pyplot as plt
 import numpy as np
@@ -94,8 +97,8 @@ plt.show()
 ![image](https://github.com/AliForghani/Lidar-with-pdal/assets/22843733/d68c4cd1-080f-442b-8a06-e973828b87e0)
 
 ### Step 2: Develop Red raster
-Currently, our lidar dataset does not have Red band data to be used for calculation of NDVI. Here we aim to get Red data from the imagery dataset. To do that we need to add RGB values from the image to the lidar point records.
-Below is a PDALpipeline that reads las file, filter data (for desired return number and classification), add RGB, and save into a new las file.
+Currently, our lidar las file does not have Red band data needed for the calculation of NDVI. Here we aim to get Red data from the imagery dataset by adding RGB values from the image tiff file to the lidar point records.
+Below is a PDAL pipeline that reads las file, filter data (for desired return number and classification), add RGB, and save into a new las file.
 
 ```python
 import json
@@ -130,7 +133,7 @@ pipeline = pdal.Pipeline(json.dumps(pdal_pipeline))
 # Execute the pipeline
 pipeline.execute()
 ```
-Then, we use PDAL as below to make a new raster file with cell size of 10ft for the Red dimension:
+Then, we use PDAL as below to make a new raster file with cell size of 10m for the Red dimension:
 
 ```python
 import json
@@ -185,7 +188,7 @@ plt.show()
 
 
 ### Step 3: Calculate the "pseudo" NDVI
-Finally, use below python code to calculate NDVI as NDVI = NIR-RED /(NIR+ RED), plot it and save the results into a new raster file. 
+Finally, we use below python code to calculate NDVI as NDVI = (NIR-RED) /(NIR+ RED), plot it and save the results into a new raster file. 
 ```python
 import matplotlib.pyplot as plt
 import numpy as np
