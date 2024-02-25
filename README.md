@@ -98,7 +98,7 @@ plt.show()
 
 ### Step 2: Develop Red raster
 Currently, our lidar las file does not have Red band data needed for the calculation of NDVI. Here we aim to get Red data from the imagery dataset by adding RGB values from the image tiff file to the lidar point records.
-Below is a PDAL pipeline that reads las file, filter data (for desired return number and classification), add RGB, and save into a new las file.
+Below is a PDAL pipeline that reads las file, filter data (for desired return number and classification), add RGB into the las file, and make a raster file with cell size of 10 using mean values of Red in each cell.
 
 ```python
 import json
