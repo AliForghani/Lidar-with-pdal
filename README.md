@@ -122,9 +122,14 @@ pdal_pipeline = {
             # The format of each dimension is <name>:<band_number>:<scale_factor>
             "dimensions": "Red:1:1.0, Green:2:1.0, Blue:3:1.0",
         },
-        {  # save into a new las file
-            "type": "writers.las",
-            "filename": "MD_Baltimore_2008_000030_withRGB_pdal.las",
+        {  # create raster from filter points using Red mean values
+            "type": "writers.gdal",
+            "filename": "red_img_pdal.tiff",
+            "dimension": "Red",
+            "output_type": "mean",
+            "resolution": 10,
+            "nodata": -999,
+            "data_type": "float32",
         },
     ]
 }
@@ -133,39 +138,7 @@ pipeline = pdal.Pipeline(json.dumps(pdal_pipeline))
 # Execute the pipeline
 pipeline.execute()
 ```
-Then, we use PDAL as below to make a new raster file with cell size of 10m for the Red dimension:
 
-```python
-import json
-
-import pdal
-
-
-def make_red_raster():
-    pdal_pipeline = {
-        "pipeline": [
-            {  # read las file
-                "type": "readers.las",
-                "filename": "MD_Baltimore_2008_000030_withRGB_pdal.las",
-                "spatialreference": "EPSG:26985",
-            },
-            {  # create raster from filter points using intensity mean values
-                "type": "writers.gdal",
-                "filename": "red_img_pdal.tiff",
-                "dimension": "Red",
-                "output_type": "mean",
-                "resolution": 10,
-                "nodata": -999,
-                "data_type": "float32",
-            },
-        ]
-    }
-    # Create a PDAL pipeline object
-    pipeline = pdal.Pipeline(json.dumps(pdal_pipeline))
-    # Execute the pipeline
-    pipeline.execute()
-
-```
 Similarly, we use below code to plot the Red raster:
 
 ```python
@@ -196,43 +169,42 @@ import rasterio
 from matplotlib.colors import LinearSegmentedColormap
 
 
-def calculate_ndvi():
-    # read intensity and Red data...record nodata
-    NIR_dataset = rasterio.open("intensity_img_pdal.tiff")
-    no_data = NIR_dataset.nodata
-    NIR = NIR_dataset.read(1)
-    Red = rasterio.open("red_img_pdal.tiff").read(1)
-    # build NDVI array considering nodata
-    NDVI = np.where(
-        ((NIR == no_data) | (Red == no_data)), np.nan, (NIR - Red) / (NIR + Red)
-    )
-    # Define a colormap for -1 as red and 1 as green
-    color_points = {
-        "red": [(0.0, 1.0, 1.0), (0.5, 1.0, 1.0), (1.0, 0.0, 0.0)],
-        "green": [(0.0, 0.0, 0.0), (0.5, 1.0, 1.0), (1.0, 1.0, 1.0)],
-        "blue": [(0.0, 0.0, 0.0), (0.5, 0.0, 0.0), (1.0, 0.0, 0.0)],
-    }
-    # Create colormap
-    custom_cmap = LinearSegmentedColormap("CustomColormap", color_points)
-    plt.imshow(NDVI, cmap=custom_cmap)
-    plt.colorbar(label="NDVI Value")
-    plt.title("NDVI Using open-source")
-    plt.axis("off")
-    plt.show()
-    # save the NDVI in a new raster file
-    with rasterio.open(
-        "NDVI.tiff",
-        "w",
-        driver="GTiff",
-        height=NIR_dataset.height,
-        width=NIR_dataset.width,
-        dtype=NIR_dataset.dtypes[0],
-        count=1,  # Number of bands
-        crs=NIR_dataset.crs,
-        transform=NIR_dataset.transform,
-        nodata=NIR_dataset.nodata,
-    ) as dst:
-        dst.write(NDVI, 1)
+# read intensity and Red data...record nodata
+NIR_dataset = rasterio.open("intensity_img_pdal.tiff")
+no_data = NIR_dataset.nodata
+NIR = NIR_dataset.read(1)
+Red = rasterio.open("red_img_pdal.tiff").read(1)
+# build NDVI array considering nodata
+NDVI = np.where(
+    ((NIR == no_data) | (Red == no_data)), np.nan, (NIR - Red) / (NIR + Red)
+)
+# Define a colormap for -1 as red and 1 as green
+color_points = {
+    "red": [(0.0, 1.0, 1.0), (0.5, 1.0, 1.0), (1.0, 0.0, 0.0)],
+    "green": [(0.0, 0.0, 0.0), (0.5, 1.0, 1.0), (1.0, 1.0, 1.0)],
+    "blue": [(0.0, 0.0, 0.0), (0.5, 0.0, 0.0), (1.0, 0.0, 0.0)],
+}
+# Create colormap
+custom_cmap = LinearSegmentedColormap("CustomColormap", color_points)
+plt.imshow(NDVI, cmap=custom_cmap)
+plt.colorbar(label="NDVI Value")
+plt.title("NDVI")
+plt.axis("off")
+plt.show()
+# save the NDVI in a new raster file
+with rasterio.open(
+    "NDVI.tiff",
+    "w",
+    driver="GTiff",
+    height=NIR_dataset.height,
+    width=NIR_dataset.width,
+    dtype=NIR_dataset.dtypes[0],
+    count=1,  # Number of bands
+    crs=NIR_dataset.crs,
+    transform=NIR_dataset.transform,
+    nodata=NIR_dataset.nodata,
+) as dst:
+    dst.write(NDVI, 1)
 ```
 ![image](https://github.com/AliForghani/Lidar-with-pdal/assets/22843733/467055ac-8213-49f1-8888-4a5a52a7f71a)
 
