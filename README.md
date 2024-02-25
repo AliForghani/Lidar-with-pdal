@@ -188,7 +188,7 @@ color_points = {
 custom_cmap = LinearSegmentedColormap("CustomColormap", color_points)
 plt.imshow(NDVI, cmap=custom_cmap)
 plt.colorbar(label="NDVI Value")
-plt.title("NDVI")
+plt.title("Pseudo NDVI")
 plt.axis("off")
 plt.show()
 # save the NDVI in a new raster file
@@ -206,5 +206,6 @@ with rasterio.open(
 ) as dst:
     dst.write(NDVI, 1)
 ```
-![image](https://github.com/AliForghani/Lidar-with-pdal/assets/22843733/467055ac-8213-49f1-8888-4a5a52a7f71a)
+![image](https://github.com/AliForghani/Lidar-with-pdal/assets/22843733/db764efa-389c-47fe-921d-cfb917a10fa2)
+
 
