@@ -206,6 +206,10 @@ with rasterio.open(
 ) as dst:
     dst.write(NDVI, 1)
 ```
-![image](https://github.com/AliForghani/Lidar-with-pdal/assets/22843733/db764efa-389c-47fe-921d-cfb917a10fa2)
+![photo_2024-02-25_00-15-44](https://github.com/AliForghani/Lidar-with-pdal/assets/22843733/b79d8906-a3b0-477a-afcf-2a6835c54757)
+
+
+
+
 
 
